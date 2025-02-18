@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Oman Companies Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <style>
+        #map { height: 600px; width: 100%; }
+        .filter-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="filter-container">
+    <label for="industryFilter">Industry:</label>
+    <select id="industryFilter" onchange="filterMarkers()">
+        <option value="All">All</option>
+    </select>
+    <br>
+    <label for="cityFilter">City:</label>
+    <select id="cityFilter" onchange="filterMarkers()">
+        <option value="All">All</option>
+    </select>
+</div>
+
+<script>
+    var map = L.map('map').setView([23.6, 58.5], 7);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var markerCluster = L.markerClusterGroup();
+    var allMarkers = [];
+    var industries = new Set();
+    var cities = new Set();
+
+    fetch('oman_companies.json')
+    .then(response => response.json())
+    .then(data => {
+        for (let industry in data.industries) {
+            data.industries[industry].forEach(company => {
+                let lat = parseFloat(company["Latitude"]);
+                let lon = parseFloat(company["Longitude"]);
+
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    let popupContent = `<b>Company:</b> ${company["Company"]}<br>
+                                        <b># Employees:</b> ${company["# Employees"]}<br>
+                                        <b>Founded:</b> ${company["Founded Year"]}<br>
+                                        <b>Industry:</b> ${company["Industry"]}<br>
+                                        <b>City:</b> ${company["Company City"]}<br>
+                                        <b>Website:</b> <a href='${company["Website"]}' target='_blank'>${company["Website"]}</a><br>
+                                        <b>Description:</b> ${company["Short Description"]}`;
+
+                    let marker = L.marker([lat, lon])
+                        .bindPopup(popupContent)
+                        .bindTooltip(company["Company"]);
+
+                    markerCluster.addLayer(marker);
+                    allMarkers.push({ marker, industry, city: company["Company City"] });
+
+                    industries.add(company["Industry"]);
+                    cities.add(company["Company City"]);
+                }
+            });
+        }
+
+        // Add markers to the map
+        map.addLayer(markerCluster);
+
+        // Populate dropdowns dynamically
+        let industryFilter = document.getElementById("industryFilter");
+        industries.forEach(ind => {
+            let option = document.createElement("option");
+            option.value = ind;
+            option.text = ind;
+            industryFilter.appendChild(option);
+        });
+
+        let cityFilter = document.getElementById("cityFilter");
+        cities.forEach(city => {
+            let option = document.createElement("option");
+            option.value = city;
+            option.text = city;
+            cityFilter.appendChild(option);
+        });
+    })
+    .catch(error => console.error("Error loading JSON:", error));
+
+    function filterMarkers() {
+        let selectedIndustry = document.getElementById("industryFilter").value;
+        let selectedCity = document.getElementById("cityFilter").value;
+
+        markerCluster.clearLayers();
+
+        allMarkers.forEach(({ marker, industry, city }) => {
+            if ((selectedIndustry === "All" || industry === selectedIndustry) &&
+                (selectedCity === "All" || city === selectedCity)) {
+                markerCluster.addLayer(marker);
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
