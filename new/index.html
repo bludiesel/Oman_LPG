@@ -10,15 +10,24 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
     <style>
-        /* Ensures the map dynamically resizes */
-        html, body, #map {
+        html, body {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100vh;
+            height: 100%;
         }
 
-        /* Dropdown Filter Box */
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Ensure Dropdown Doesn't Affect Map Layout */
         .filter-container {
             position: absolute;
             top: 10px;
@@ -28,25 +37,6 @@
             border-radius: 8px;
             box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
             z-index: 1000;
-        }
-
-        /* Custom Legend */
-        .legend {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-        .legend i {
-            width: 18px;
-            height: 18px;
-            float: left;
-            margin-right: 8px;
-            opacity: 0.7;
         }
     </style>
 </head>
@@ -82,15 +72,6 @@
     fetch('oman_companies.json')
     .then(response => response.json())
     .then(data => {
-        let industryColors = {
-            "Retail": "blue",
-            "Manufacturing": "red",
-            "Logistics": "green",
-            "Healthcare": "purple",
-            "Finance": "orange",
-            "Technology": "pink"
-        };
-
         for (let industry in data.industries) {
             data.industries[industry].forEach(company => {
                 let lat = parseFloat(company["Latitude"]);
@@ -105,14 +86,9 @@
                                         <b>Website:</b> <a href='${company["Website"]}' target='_blank'>${company["Website"]}</a><br>
                                         <b>Description:</b> ${company["Short Description"]}`;
 
-                    let marker = L.marker([lat, lon], {
-                        icon: L.divIcon({
-                            className: "custom-marker",
-                            html: `<div style="background-color:${industryColors[industry] || 'gray'}; width: 12px; height: 12px; border-radius: 50%;"></div>`,
-                            iconSize: [12, 12],
-                            popupAnchor: [0, -10]
-                        })
-                    }).bindPopup(popupContent).bindTooltip(company["Company"]);
+                    let marker = L.marker([lat, lon])
+                        .bindPopup(popupContent)
+                        .bindTooltip(company["Company"]);
 
                     markerCluster.addLayer(marker);
                     allMarkers.push({ marker, industry, city: company["Company City"] });
@@ -143,20 +119,11 @@
             cityFilter.appendChild(option);
         });
 
-        // Add Custom Legend
-        let legend = L.control({ position: "bottomleft" });
-        legend.onAdd = function (map) {
-            let div = L.DomUtil.create("div", "legend");
-            div.innerHTML = `<b>Industry Legend</b><br>
-                <i style="background: blue"></i> Retail<br>
-                <i style="background: red"></i> Manufacturing<br>
-                <i style="background: green"></i> Logistics<br>
-                <i style="background: purple"></i> Healthcare<br>
-                <i style="background: orange"></i> Finance<br>
-                <i style="background: pink"></i> Technology<br>`;
-            return div;
-        };
-        legend.addTo(map);
+        // **Force Leaflet to Resize the Map After Loading**
+        setTimeout(() => {
+            map.invalidateSize();
+            console.log("✅ Map resized successfully!");
+        }, 500);
     })
     .catch(error => console.error("Error loading JSON:", error));
 
